@@ -1,0 +1,15 @@
+URL (https://childcareta.acf.hhs.gov/sites/default/files/.*)
+file size (bytes)
+file name
+title
+title length (characters)
+date created
+date revised?
+page count
+page dimension
+URLs in text
+URLs in text with 404 error (or any value /= 200)
+contains image
+alt tags
+indexed?
+meets 508 requirements (see https://www.section508.gov/create/pdfs/authoring-guides/)
