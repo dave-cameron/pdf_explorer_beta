@@ -5,6 +5,9 @@ from datetime import datetime as dt
 import urllib3 as httpclient
 from urllib3 import Timeout, PoolManager 
 import re # regex
+import os.path
+from os import path
+
 
 # helper functions  
 # create http session manager
@@ -103,6 +106,9 @@ def contains_image(pdf_document):
     raise NotImplementedError # to implement with PyMuPDF
 
 def create_excel(metadata_list):
+
+    file_name = f"PDF_Metadata_{dt.today().strftime('%Y-%m-%d')}.xlsx"
+
     # using pandas, create dataframe to hold all the data 
     metadata_df = pd.DataFrame(metadata_list, columns=["Url", 
                                                        "Format", 
@@ -120,11 +126,14 @@ def create_excel(metadata_list):
                                                        # "Image count",  # to implement
                                                        # "Meets 508" # to implement
                                         ])
-
-    # create excel document
-    # todo add check if file already exists
-    # will save in local folder
-    metadata_df.to_excel(f"PDF_Metadata_{dt.today().strftime('%Y-%m-%d')}.xlsx", sheet_name="PDF_Metadata", index=False)
+    
+    # todo add check if file already exists, might be unsafe 
+    if path.isfile(file_name):
+        
+        os.remove(file_name) # delete file
+        # create excel document
+        # will save in local folder
+        metadata_df.to_excel(file_name, sheet_name="PDF_Metadata", index=False)
 
 def get_images(pdf_document): #todo, to implement with PyMuPDF
     raise NotImplementedError # return dict of "has image bool, count"
