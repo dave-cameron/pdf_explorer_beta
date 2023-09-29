@@ -62,6 +62,8 @@ def get_urls(pdf_document, url_pattern):
     for page_number in range(page_count):
         page = pdf_document.load_page(page_number)
         page_text = page.get_text()
+        
+        # cleaned_page_text = clean_text(page_text)
 
         # Find all URLs on the page using the regular expression
         urls_in_pdf = set(re.findall(url_pattern, page_text))   # use set to remove duplicates (i.e., find all unique elements)
@@ -126,6 +128,14 @@ def create_excel(metadata_list):
 
 def get_images(pdf_document): #todo, to implement with PyMuPDF
     raise NotImplementedError # return dict of "has image bool, count"
+
+# def clean_text(page_text):
+
+    print(page_text)
+    page_text = page_text.replace('\n', '')
+    print(page_text)
+
+    return page_text
 
 if __name__ == "__main__":
     
