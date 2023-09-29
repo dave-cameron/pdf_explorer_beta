@@ -1,4 +1,4 @@
-import fitz  # PyMuPDF
+import fitz as pdfCrawler # PyMuPDF
 import requests
 import re
 
@@ -12,7 +12,7 @@ def extract_urls_from_pdf(pdf_url):
         return
 
     # Create a PDF document object
-    pdf_document = fitz.open(stream=response.content, filetype="pdf")
+    pdf_document = pdfCrawler.open(stream=response.content, filetype="pdf")
 
     # Get the total page count
     total_pages = pdf_document.page_count
