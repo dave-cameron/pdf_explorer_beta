@@ -9,7 +9,6 @@ import os.path
 from os import path
 from urllib3 import Timeout, PoolManager 
 from datetime import datetime as dt
-from PIL import Image # may not need this but keeping just in case
 
 # helper functions  
 # create http session manager
@@ -60,7 +59,7 @@ def get_metadata(url):
 def get_urls(pdf_document, url_pattern):
 
     # Initialize a list to store the URLs found in the PDF
-    found_urls = []
+    all_urls = []
     page_count = pdf_document.page_count
 
     # Loop through each page in the PDF
@@ -71,13 +70,21 @@ def get_urls(pdf_document, url_pattern):
         # cleaned_page_text = clean_text(page_text)
 
         # Find all URLs on the page using the regular expression
-        urls_in_pdf = set(re.findall(url_pattern, page_text))   # use set to remove duplicates (i.e., find all unique elements)
+        urls_on_page = set(re.findall(url_pattern, page_text))   # use set to remove duplicates (i.e., find all unique elements)
 
-        # Add the found URLs to the list
-        found_urls.extend(urls_in_pdf)
-        print(f"Number of urls found on page {page_number + 1}: {len(urls_in_pdf)}") # todo: clean this hack up
+        # if no urls print found no urls, 
+        if len(urls_on_page) < 1:
+            print(f"[!] Found no urls on page {page_number + 1}.") # todo: clean this hack up (+ 1 to page_number)
+        else:
+            all_urls.extend(urls_on_page) # else add urls to list 
+            print(f"[+] Found {len(urls_on_page)} url(s) on page {page_number + 1}.") # and print # of urls found on page 
 
-    return found_urls
+    if len(all_urls) < 1:
+        print(f"[!] Found no URLs in PDF")
+    else:
+        print(f"[+] Found {len(all_urls)} URL(s) in PDF")
+        
+    return all_urls
 
 def check_url_status(pdf_urls, http):
     
@@ -90,7 +97,6 @@ def check_url_status(pdf_urls, http):
             print(f"Checking status of url: {url}")
             response = http.request("GET", url, retries = 5)
             url_dict[url] = f"URL status: {response.status}"
-
         except httpclient.exceptions.NewConnectionError as err:
             print(f"Connection failed on {url} due to NewConnectionError: {err}.")
         except httpclient.exceptions.ReadTimeoutError as err:
@@ -143,15 +149,15 @@ def get_num_of_images_in_doc(pdf_document): #todo, to implement with PyMuPDF
            
            # printing number of images found in this page
            if image_list:
-               print(f"[+] Found a total of {len(image_list)} images in page {page_index}")
+               print(f"[+] Found a total of {len(image_list)} image(s) on page {page_index}")
                image_count += len(image_list)
            else:
-               print(f"[!] No images found on page {page_index}")
+               print(f"[!] No image(s) found on page {page_index}")
 
         except Exception as err:
-           print(f"Exception getting images dude error: {err}.")
+           print(f"Exception getting image(s) dude error: {err}.")
 
-    print("Total images in this PDF: ", image_count)
+    print("Total # of images in this PDF: ", image_count)
     return image_count
 
 if __name__ == "__main__":
@@ -176,7 +182,7 @@ if __name__ == "__main__":
         
         #initalize list to store metadata
         metadata_list = []
-        missed_urls = [] # PDF URLs that are broken or have issues so we can't analyze their contents
+        skipped_urls = [] # PDF URLs that are broken or have issues so we can't analyze their contents
 
         # keep track of how many have been iterated so far
         curr_url_count = 1 
@@ -193,8 +199,8 @@ if __name__ == "__main__":
 
                 # check if nothing came back b/c of error 
                 if pdf_document is None:
-                    print(f"Error with current url: {url}")
-                    missed_urls.append({url})
+                    print(f"[!] There is no PDF to work with because of an error for this url: {url}")
+                    skipped_urls.append({url})
                 else:
                     print(f"Pulling metadata for PDF: {url}")
                     # get images
@@ -229,10 +235,12 @@ if __name__ == "__main__":
         # create the final Excel file with all metadata from all PDFs
         create_excel(metadata_list)
         print("Created excel file")
-        print("Missed URLs: ")
 
-        for item in missed_urls:
-            print({item})
+        if len(skipped_urls) < 1:
+            print(f"[O] No URLs were skipped.")
+        else:
+            for url in skipped_urls:
+                print(f"[!] Skipped URL: {url}")
 
     except Exception as err:
         # print the error message so we know what happened and can try to fix the issue= (e.g., typo in the pdf_url)
