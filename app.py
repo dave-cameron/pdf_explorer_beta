@@ -1,13 +1,15 @@
+import io
 import fitz as pdfCrawler # PyMuPDF
 import requests as request
 import pandas as pd # https://pandas.pydata.org/docs/getting_started/index.html 
-from datetime import datetime as dt
 import urllib3 as httpclient
-from urllib3 import Timeout, PoolManager 
 import re # regex
 import os.path
-from os import path
 
+from os import path
+from urllib3 import Timeout, PoolManager 
+from datetime import datetime as dt
+from PIL import Image # may not need this but keeping just in case
 
 # helper functions  
 # create http session manager
@@ -102,9 +104,6 @@ def check_url_status(pdf_urls, http):
 
     return url_dict
 
-def contains_image(pdf_document): 
-    raise NotImplementedError # to implement with PyMuPDF
-
 def create_excel(metadata_list):
 
     file_name = f"PDF_Metadata_{dt.today().strftime('%Y-%m-%d')}.xlsx"
@@ -115,15 +114,14 @@ def create_excel(metadata_list):
                                                        "File size",
                                                        "File name",
                                                        "Page count", 
+                                                       "Images count",
                                                        "Date Created", 
                                                        "Date Modified", 
                                                        "Title", 
                                                        "Author",
                                                        "Subject",
                                                        "Keywords",
-                                                       "URLs"  # {https://www.someurl.com: status 404,  https://www.someurl.com: status 200, ...} 
-                                                       # "Has Image(s),"  # to implement
-                                                       # "Image count",  # to implement
+                                                       "URLs",  # {https://www.someurl.com: status 404,  https://www.someurl.com: status 200, ...} 
                                                        # "Meets 508" # to implement
                                         ])
     
@@ -135,16 +133,26 @@ def create_excel(metadata_list):
         # will save in local folder
         metadata_df.to_excel(file_name, sheet_name="PDF_Metadata", index=False)
 
-def get_images(pdf_document): #todo, to implement with PyMuPDF
-    raise NotImplementedError # return dict of "has image bool, count"
+def get_num_of_images_in_doc(pdf_document): #todo, to implement with PyMuPDF
+    
+    image_count = 0
+    for page_index in range(len(pdf_document)):
+        
+        try:
+           image_list = pdf_document[page_index].get_images(full=True)
+           
+           # printing number of images found in this page
+           if image_list:
+               print(f"[+] Found a total of {len(image_list)} images in page {page_index}")
+               image_count += len(image_list)
+           else:
+               print(f"[!] No images found on page {page_index}")
 
-# def clean_text(page_text):
+        except Exception as err:
+           print(f"Exception getting images dude error: {err}.")
 
-    print(page_text)
-    page_text = page_text.replace('\n', '')
-    print(page_text)
-
-    return page_text
+    print("Total images in this PDF: ", image_count)
+    return image_count
 
 if __name__ == "__main__":
     
@@ -189,10 +197,11 @@ if __name__ == "__main__":
                     missed_urls.append({url})
                 else:
                     print(f"Pulling metadata for PDF: {url}")
+                    # get images
+                    images_count = get_num_of_images_in_doc(pdf_document)
                     # get urls from page
                     pdf_urls = get_urls(pdf_document, url_pattern)
                     checked_urls = check_url_status(pdf_urls, http)
-
                     # grab the metadata from the PDF and 
                     metadata = get_metadata(pdf_document)
                     
@@ -203,6 +212,7 @@ if __name__ == "__main__":
                                             pdf_file_size, 
                                             pdf_file_name,
                                             pdf_document.page_count,
+                                            images_count,
                                             metadata["creationDate"],
                                             metadata["modDate"],
                                             metadata["title"],
