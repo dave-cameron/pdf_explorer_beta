@@ -115,21 +115,22 @@ def create_excel(metadata_list):
     file_name = f"PDF_Metadata_{dt.today().strftime('%Y-%m-%d')}.xlsx"
 
     # using pandas, create dataframe to hold all the data 
-    metadata_df = pd.DataFrame(metadata_list, columns=["Url", 
-                                                       "Format", 
-                                                       "File size",
-                                                       "File name",
-                                                       "Page count", 
-                                                       "Images count",
-                                                       "Date Created", 
-                                                       "Date Modified", 
-                                                       "Title", 
-                                                       "Author",
-                                                       "Subject",
-                                                       "Keywords",
-                                                       "URLs",  # {https://www.someurl.com: status 404,  https://www.someurl.com: status 200, ...} 
-                                                       # "Meets 508" # to implement
-                                        ])
+    metadata_df = pd.DataFrame(metadata_list, columns=[
+        "Url", 
+        "Format", 
+        "File size",
+        "File name",
+        "Page count", 
+        "Images count",
+        "Date Created", 
+        "Date Modified", 
+        "Title", 
+        "Author",
+        "Subject",
+        "Keywords",
+        "URLs",  # {https://www.someurl.com: status 404,  https://www.someurl.com: status 200, ...} 
+        # "Meets 508" # to implement
+    ])
     
     # todo add check if file already exists, might be unsafe 
     if path.isfile(file_name):
@@ -163,7 +164,7 @@ def get_num_of_images_in_doc(pdf_document): #todo, to implement with PyMuPDF
 if __name__ == "__main__":
     
     print(f"Starting process at {dt.today()}")
-    url_pattern = r"http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+" # does not work for aliases (i.e., "Click here!"), does not handle line breaks
+    URL_PATTERN = r"http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+" # does not work for aliases (i.e., "Click here!"), does not handle line breaks
     
     # path to the excel file or excel file name if in path
     path_to_file = "CCTAN-internal_pdfs_20230914.xlsx"
@@ -206,27 +207,27 @@ if __name__ == "__main__":
                     # get images
                     images_count = get_num_of_images_in_doc(pdf_document)
                     # get urls from page
-                    pdf_urls = get_urls(pdf_document, url_pattern)
+                    pdf_urls = get_urls(pdf_document, URL_PATTERN)
                     checked_urls = check_url_status(pdf_urls, http)
                     # grab the metadata from the PDF and 
                     metadata = get_metadata(pdf_document)
                     
                     # add URL + relevant metadata to list
                     current_url_metadata = [
-                                            url, 
-                                            metadata["format"], 
-                                            pdf_file_size, 
-                                            pdf_file_name,
-                                            pdf_document.page_count,
-                                            images_count,
-                                            metadata["creationDate"],
-                                            metadata["modDate"],
-                                            metadata["title"],
-                                            metadata["author"],
-                                            metadata["subject"],
-                                            metadata["keywords"],
-                                            checked_urls,
-                                    ]
+                        url, 
+                        metadata["format"], 
+                        pdf_file_size, 
+                        pdf_file_name,
+                        pdf_document.page_count,
+                        images_count,
+                        metadata["creationDate"],
+                        metadata["modDate"],
+                        metadata["title"],
+                        metadata["author"],
+                        metadata["subject"],
+                        metadata["keywords"],
+                        checked_urls,
+                    ]
                     # append the metadata for the current pdf url to the larger list of all PDFs/urls
                     metadata_list.append(current_url_metadata)
 
