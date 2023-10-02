@@ -177,7 +177,7 @@ if __name__ == "__main__":
         print(f"Grabbing excel file {path_to_file}")
         excel_df = pd.read_excel(path_to_file)
 
-        # grab the 2nd row (the row with URLs) and convert to a list 
+        # grab the 2nd column (the column with URLs) and convert to a list 
         url_list = excel_df.iloc[:,0].values.flatten().tolist()
         
         #initalize list to store metadata
