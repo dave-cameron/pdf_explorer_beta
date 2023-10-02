@@ -129,14 +129,6 @@ def create_excel(metadata_list):
 def get_images(pdf_document): #todo, to implement with PyMuPDF
     raise NotImplementedError # return dict of "has image bool, count"
 
-# def clean_text(page_text):
-
-    print(page_text)
-    page_text = page_text.replace('\n', '')
-    print(page_text)
-
-    return page_text
-
 if __name__ == "__main__":
     
     print(f"Starting process at {dt.today()}")
