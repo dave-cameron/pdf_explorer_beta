@@ -14,7 +14,6 @@ from urllib3 import Timeout, PoolManager
 from datetime import datetime as dt
 
 # ?? is a "helper function" as commented below a term with specific meaning or just a general term?
-
 # helper functions  
 # create http session manager
 def create_pool_manager():
@@ -32,10 +31,12 @@ def get_pdf(pdf_url, http):
         response = http.request("GET", pdf_url, retries = 5)
         
         if response.headers.get("Content-Disposition") is None:
-            print("No Content Disposition that has file name so creating file name from URL")
+            print(f"[!] Could not find file name, so generating a file name now.")
             pdf_file_name = pdf_url.split("/")[-1]
         else:
             pdf_file_name = response.headers.get("Content-Disposition").split("filename=")[1]
+            
+        print(f"File name: {pdf_file_name}")
             
         # try to get page length
         if response.headers.get("Content-Length") is None:
@@ -60,7 +61,6 @@ def get_pdf(pdf_url, http):
 
 def get_metadata(url):
     # probably could do a lot more more in this method
-    print(pdf_document.metadata)
     return pdf_document.metadata
 
 def get_urls(pdf_document, url_pattern):
@@ -68,6 +68,10 @@ def get_urls(pdf_document, url_pattern):
     # Initialize a list to store the URLs found in the PDF
     all_urls = []
     page_count = pdf_document.page_count
+
+    print(f"\n---------------------------------------------")
+    print(f"Finding URLs in current PDF")
+    print(f"---------------------------------------------\n")
 
     # Loop through each page in the PDF
     for page_number in range(page_count):
@@ -81,15 +85,18 @@ def get_urls(pdf_document, url_pattern):
 
         # if no urls print found no urls, 
         if len(urls_on_page) < 1:
-            print(f"[!] Found no urls on page {page_number + 1}.") # todo: clean this hack up (+ 1 to page_number)
+            print(f"[!] Found a total of {len(urls_on_page)} url(s) on page {page_number + 1}.")  # todo: clean this hack up (+ 1 to page_number)
         else:
             all_urls.extend(urls_on_page) # else add urls to list 
-            print(f"[+] Found {len(urls_on_page)} url(s) on page {page_number + 1}.") # and print # of urls found on page 
+            print(f"[+] Found a total of {len(urls_on_page)} url(s) on page {page_number + 1}.") # and print # of urls found on page 
+
+    print (f"---------------------------------------------")
 
     if len(all_urls) < 1:
-        print(f"[!] Found no URLs in PDF")
+        print(f"[!] Found no URLs in PDF\n")
     else:
-        print(f"[+] Found {len(all_urls)} URL(s) in PDF")
+
+        print(f"[+] Found {len(all_urls)} URL(s) in PDF\n")
         
     return all_urls
 
@@ -97,23 +104,33 @@ def check_url_status(pdf_urls, http):
     
     url_dict = {}
 
-   
+    print(f"\n---------------------------------------------")
+    print(f"Checking status of URLs in PDF")
+    print(f"---------------------------------------------\n")
+
     for url in pdf_urls:
         
         try:
             print(f"Checking status of url: {url}")
             response = http.request("GET", url, retries = 5)
+    
+            if response.status == 200:
+                print(f"[+] URL status: {response.status}\n")
+            else:
+                print(f"[!] URL status: {response.status}\n")
+
             url_dict[url] = f"URL status: {response.status}"
-        except httpclient.exceptions.NewConnectionError as err:
-            print(f"Connection failed on {url} due to NewConnectionError: {err}.")
-        except httpclient.exceptions.ReadTimeoutError as err:
-            print(f"Connection failed on {url} due to ReadTimeoutError: {err}.")
-        except httpclient.exceptions.TimeoutError as err:
-            print(f"Connection failed on {url} due to TimeoutError: {err}.")
-        except httpclient.exceptions.NameResolutionError as err:
-            print(f"Connection failed on {url} due to NameResolutionError: {err}.")
-        except Exception as err:
-            print(f"Error getting pdf: {err}")
+
+        except httpclient.exceptions.NewConnectionError as e:
+            print(f"\n[!] Connection failed on {url} due to NewConnectionError: {str(e)}.\n")
+        except httpclient.exceptions.ReadTimeoutError as e:
+            print(f"\n[!] Connection failed on {url} due to ReadTimeoutError: {str(e)}.\n")
+        except httpclient.exceptions.TimeoutError as e:
+            print(f"\n[!] Connection failed on {url} due to TimeoutError: {str(e)}.\n")
+        except httpclient.exceptions.NameResolutionError as e:
+            print(f"\n[!] Connection failed on {url} due to NameResolutionError: {str(e)}.\n")
+        except Exception as e:
+            print(f"\n[!] Error getting pdf: {str(e)}\n")
 
     return url_dict
 
@@ -163,14 +180,21 @@ def get_num_of_images_in_doc(pdf_document): #todo, to implement with PyMuPDF
                print(f"[!] No image(s) found on page {page_index}")
 
         except Exception as err:
-           print(f"Exception getting image(s) dude error: {err}.")
+           print(f"Exception getting image(s) dude error: {err}.\n")
 
-    print("Total # of images in this PDF: ", image_count)
+    print(f"---------------------------------------------")
+    print(f"[+] Total # of images in this PDF: {image_count}\n")
     return image_count
 
 if __name__ == "__main__":
-    
-    print(f"Starting process at {dt.today()}")
+
+    day = dt.today().strftime("%d/%m/%Y")
+    time = dt.today().strftime("%H:%M:%S")
+
+    print(f"\n---------------------------------------------")
+    print(f"Starting the process at {time} on {day}")
+    print(f"---------------------------------------------\n")
+
     URL_PATTERN = r"http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+" # does not work for aliases (i.e., "Click here!"), does not handle line breaks
     
     # path to the excel file or excel file name if in path
@@ -181,43 +205,44 @@ if __name__ == "__main__":
         # create the httpclient
         http = create_pool_manager()
 
-        # get the excel file from a path and convert to dataframe?
-        print(f"Grabbing excel file {path_to_file}")
+        print(f"Getting the excel file and getting URLs:  {path_to_file}")
         excel_df = pd.read_excel(path_to_file)
-
-        # grab the 2nd column (the column with URLs) and convert to a list 
-        url_list = excel_df.iloc[:,0].values.flatten().tolist()
+        url_list = excel_df.iloc[:,0].values.flatten().tolist()  # grab the 2nd column (the column with URLs) and convert to a list 
         
-        #initalize list to store metadata
-        metadata_list = []
+        metadata_list = [] # created this to hold all of the metadata from the PDF url 
         skipped_urls = [] # PDF URLs that are broken or have issues so we can't analyze their contents
 
-        # keep track of how many have been iterated so far
+        # create a counter to keep track of how many URLs from the Excel spreadsheet we have looked at so far, starting with the first one
         curr_url_count = 1 
 
-        # iterate over all the URLs in the dataframe
+        # for each url in the list of URLs we took from the Excel spreasheet:
         for url in url_list:
             
-            if curr_url_count <= 1:  # only look at the first 'n' so we can refine 
+            if curr_url_count <= 1:  # only look at the first URL so we can test
                 
                 # get the PDF, file size, file name
-                print(f"Working PDF #{curr_url_count}")
-                print(f"Getting PDF for: {url}")
-                pdf_document, pdf_file_size, pdf_file_name = get_pdf(url, http)
+                print(f"\n---------------------------------------------")
+                print(f"Currently processing PDF url #{curr_url_count}")
+                print(f"Getting PDF information for: {url}")
+                print(f"---------------------------------------------")
 
-                # check if nothing came back b/c of error 
+                pdf_document, pdf_file_size, pdf_file_name = get_pdf(url, http) # in the get_pdf function, pass in the url and http. 
+                                                                                # this will return the pdf document, file size (bytes) and file name
+
+                # check if nothing came becaise of an error 
                 if pdf_document is None:
-                    print(f"[!] There is no PDF to work with because of an error for this url: {url}")
+                    print(f"[!] Warning: There is no PDF to process because of an error for this url: {url}") 
                     skipped_urls.append({url})
                 else:
+                    print(f"\n---------------------------------------------")
                     print(f"Pulling metadata for PDF: {url}")
-                    # get images
-                    images_count = get_num_of_images_in_doc(pdf_document)
-                    # get urls from page
-                    pdf_urls = get_urls(pdf_document, URL_PATTERN)
-                    checked_urls = check_url_status(pdf_urls, http)
-                    # grab the metadata from the PDF and 
-                    metadata = get_metadata(pdf_document)
+                    print(f"---------------------------------------------\n")
+
+                    
+                    images_count = get_num_of_images_in_doc(pdf_document) # get images 
+                    pdf_urls = get_urls(pdf_document, URL_PATTERN)  # get urls from page
+                    checked_urls = check_url_status(pdf_urls, http) # get all statuses of urls found in PDF
+                    metadata = get_metadata(pdf_document)  # return metadata from the PDF
                     
                     # add URL + relevant metadata to list
                     current_url_metadata = [
@@ -242,8 +267,9 @@ if __name__ == "__main__":
 
         # create the final Excel file with all metadata from all PDFs
         create_excel(metadata_list)
-        print("Created excel file")
+        print("Created excel file.")
 
+        #to do: create summary
         if len(skipped_urls) < 1:
             print(f"[O] No URLs were skipped.")
         else:
