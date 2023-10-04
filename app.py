@@ -1,3 +1,6 @@
+# start by calling all the libraries and packages needed to execute the script into the environment - kind of like JavaScript?
+# QUESTION: where do these imports come from? do you need to designate these specficially or do they get added automatically?
+
 import io
 import fitz as pdfCrawler # PyMuPDF
 import requests as request
@@ -10,6 +13,8 @@ from os import path
 from urllib3 import Timeout, PoolManager 
 from datetime import datetime as dt
 
+# ?? is a "helper function" as commented below a term with specific meaning or just a general term?
+
 # helper functions  
 # create http session manager
 def create_pool_manager():
@@ -18,10 +23,12 @@ def create_pool_manager():
 
     return http
 
+
+# this defines a METHOD to be used named get_pdf
 def get_pdf(pdf_url, http):
 
     try:
-        # Download the PDF content from the URL
+        # Download the PDF content from the URL and give it 5 chances to connect
         response = http.request("GET", pdf_url, retries = 5)
         
         if response.headers.get("Content-Disposition") is None:
