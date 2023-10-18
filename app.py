@@ -1,9 +1,9 @@
 import io
 import fitz as pdfCrawler # PyMuPDF
 import requests as request
-import pandas as pd # https://pandas.pydata.org/docs/getting_started/index.html 
+import pandas as pd # https://pandas.pydata.org/docs/getting_started/index.html # may use if we decide to make dataframes to see data in real time
 import urllib3 as httpclient
-import re # regex
+# import re # regex
 import os.path
 
 from os import path
@@ -56,11 +56,12 @@ def get_metadata(url):
     # probably could do a lot more more in this method
     return pdf_document.metadata
 
-def get_urls(pdf_document, url_pattern):
+def get_links(pdf_document):
 
-    # Initialize a list to store the URLs found in the PDF
-    all_urls = []
+    # Initialize a list to store the URLs found in the PDFs
     page_count = pdf_document.page_count
+    all_urls = []
+    url_to_add = []
 
     print(f"\n---------------------------------------------")
     print(f"Finding URLs in current PDF")
@@ -68,21 +69,22 @@ def get_urls(pdf_document, url_pattern):
 
     # Loop through each page in the PDF
     for page_number in range(page_count):
+       
         page = pdf_document.load_page(page_number)
-        page_text = page.get_text()
-        
-        # cleaned_page_text = clean_text(page_text)
+        link_object = page.get_links()
 
-        # Find all URLs on the page using the regular expression
-        urls_on_page = set(re.findall(url_pattern, page_text))   # use set to remove duplicates (i.e., find all unique elements)
-
-        # if no urls print found no urls, 
-        if len(urls_on_page) < 1:
-            print(f"[!] Found a total of {len(urls_on_page)} url(s) on page {page_number + 1}.")  # todo: clean this hack up (+ 1 to page_number)
+        if len(link_object) < 1:
+            print(f"[!] Found no URLs on {page_number + 1}.")  # todo: clean this hack up (+ 1 to page_number)
         else:
-            all_urls.extend(urls_on_page) # else add urls to list 
-            print(f"[+] Found a total of {len(urls_on_page)} url(s) on page {page_number + 1}.") # and print # of urls found on page 
-
+            for item in link_object:
+                
+                if item['uri'] in url_to_add:
+                    print(f"[!] Already addded:{item['uri']}")        
+                else:
+                    print(f"[+] URL located on page {page_number + 1}: {item['uri']}")  
+                    url_to_add.append(item['uri'])  
+                    all_urls.append({f"{page_number + 1}" : item["uri"]}) # should be their own unique dictionaries
+                    
     print (f"---------------------------------------------")
 
     if len(all_urls) < 1:
@@ -101,29 +103,29 @@ def check_url_status(pdf_urls, http):
     print(f"Checking status of URLs in PDF")
     print(f"---------------------------------------------\n")
 
-    for url in pdf_urls:
-        
-        try:
-            print(f"Checking status of url: {url}")
-            response = http.request("GET", url, retries = 5)
+    try:
+        for pdf_url_dict in pdf_urls: #todo need to fix this 
+            for item in pdf_url_dict: # please fix this 
+                print(f"Checking status of url: {pdf_url_dict[item]}")
+                response = http.request("GET", url, retries = 5)
     
-            if response.status == 200:
-                print(f"[+] URL status: {response.status}\n")
-            else:
-                print(f"[!] URL status: {response.status}\n")
+                if response.status == 200:
+                    print(f"[+] URL status: {response.status}\n")
+                else:
+                    print(f"[!] URL status: {response.status}\n")
 
-            url_dict[url] = f"URL status: {response.status}"
+                url_dict[url] = f"URL status: {response.status}"
 
-        except httpclient.exceptions.NewConnectionError as e:
-            print(f"\n[!] Connection failed on {url} due to NewConnectionError: {str(e)}.\n")
-        except httpclient.exceptions.ReadTimeoutError as e:
-            print(f"\n[!] Connection failed on {url} due to ReadTimeoutError: {str(e)}.\n")
-        except httpclient.exceptions.TimeoutError as e:
-            print(f"\n[!] Connection failed on {url} due to TimeoutError: {str(e)}.\n")
-        except httpclient.exceptions.NameResolutionError as e:
-            print(f"\n[!] Connection failed on {url} due to NameResolutionError: {str(e)}.\n")
-        except Exception as e:
-            print(f"\n[!] Error getting pdf: {str(e)}\n")
+    except httpclient.exceptions.NewConnectionError as e:
+        print(f"\n[!] Connection failed on {url} due to NewConnectionError: {str(e)}.\n")
+    except httpclient.exceptions.ReadTimeoutError as e:
+        print(f"\n[!] Connection failed on {url} due to ReadTimeoutError: {str(e)}.\n")
+    except httpclient.exceptions.TimeoutError as e:
+        print(f"\n[!] Connection failed on {url} due to TimeoutError: {str(e)}.\n")
+    except httpclient.exceptions.NameResolutionError as e:
+        print(f"\n[!] Connection failed on {url} due to NameResolutionError: {str(e)}.\n")
+    except Exception as e:
+        print(f"\n[!] Error getting pdf: {str(e)}\n")
 
     return url_dict
 
@@ -167,15 +169,15 @@ def get_num_of_images_in_doc(pdf_document): #todo, to implement with PyMuPDF
            
            # printing number of images found in this page
            if image_list:
-               print(f"[+] Found a total of {len(image_list)} image(s) on page {page_index}")
+               print(f"[+] Found a total of {len(image_list)} image(s) on page {page_index + 1}") # hack
                image_count += len(image_list)
            else:
-               print(f"[!] No image(s) found on page {page_index}")
+               print(f"[!] No image(s) found on page {page_index + 1}") # hack
 
         except Exception as err:
            print(f"Exception getting image(s) dude error: {err}.\n")
 
-    print(f"---------------------------------------------")
+    print(f"-------------------------")
     print(f"[+] Total # of images in this PDF: {image_count}\n")
     return image_count
 
@@ -187,8 +189,6 @@ if __name__ == "__main__":
     print(f"\n---------------------------------------------")
     print(f"Starting the process at {time} on {day}")
     print(f"---------------------------------------------\n")
-
-    URL_PATTERN = r"http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+" # does not work for aliases (i.e., "Click here!"), does not handle line breaks
     
     # path to the excel file or excel file name if in path
     path_to_file = "CCTAN-internal_pdfs_20230914.xlsx"
@@ -209,9 +209,8 @@ if __name__ == "__main__":
         curr_url_count = 1 
 
         # for each url in the list of URLs we took from the Excel spreasheet:
-        for url in url_list:
-            
-            if curr_url_count <= 1:  # only look at the first URL so we can test
+        if curr_url_count <= 1:  # only look at the first URL so we can test
+            for url in url_list:
                 
                 # get the PDF, file size, file name
                 print(f"\n---------------------------------------------")
@@ -233,8 +232,8 @@ if __name__ == "__main__":
 
                     
                     images_count = get_num_of_images_in_doc(pdf_document) # get images 
-                    pdf_urls = get_urls(pdf_document, URL_PATTERN)  # get urls from page
-                    checked_urls = check_url_status(pdf_urls, http) # get all statuses of urls found in PDF
+                    links_in_pdf = get_links(pdf_document)  # get urls from page
+                    checked_urls = check_url_status(links_in_pdf, http) # get all statuses of urls found in PDF
                     metadata = get_metadata(pdf_document)  # return metadata from the PDF
                     
                     # add URL + relevant metadata to list
@@ -275,5 +274,3 @@ if __name__ == "__main__":
     # if there is an error, capture the error message 
     finally:
         print("Done.")
-
-    
