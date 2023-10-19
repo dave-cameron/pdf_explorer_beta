@@ -186,6 +186,9 @@ def get_num_of_images_in_doc(pdf_document): #todo, to implement with PyMuPDF
     print(f"[+] Total # of images in this PDF: {image_count}\n")
     return image_count
 
+# ******************************************
+# >>> THIS IS WHERE THE OUTPUT WILL BEGIN WHEN THIS RUNS <<<<
+# ******************************************
 if __name__ == "__main__":
 
     day = dt.today().strftime("%d/%m/%Y")
