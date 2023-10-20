@@ -102,30 +102,22 @@ def check_url_status(pdf_urls, http):
     print(f"\n---------------------------------------------")
     print(f"Checking status of URLs in PDF")
     print(f"---------------------------------------------\n")
-
-    try:
-        for pdf_url_dict in pdf_urls: #todo need to fix this 
+    
+    for pdf_url_dict in pdf_urls: #todo need to fix this 
+        try: 
             for item in pdf_url_dict: # please fix this 
                 print(f"Checking status of url: {pdf_url_dict[item]}")
-                response = http.request("GET", url, retries = 5)
+                response = http.request("GET", pdf_url_dict[item], retries = 5)
     
                 if response.status == 200:
                     print(f"[+] URL status: {response.status}\n")
                 else:
                     print(f"[!] URL status: {response.status}\n")
 
-                url_dict[url] = f"URL status: {response.status}"
-
-    except httpclient.exceptions.NewConnectionError as e:
-        print(f"\n[!] Connection failed on {url} due to NewConnectionError: {str(e)}.\n")
-    except httpclient.exceptions.ReadTimeoutError as e:
-        print(f"\n[!] Connection failed on {url} due to ReadTimeoutError: {str(e)}.\n")
-    except httpclient.exceptions.TimeoutError as e:
-        print(f"\n[!] Connection failed on {url} due to TimeoutError: {str(e)}.\n")
-    except httpclient.exceptions.NameResolutionError as e:
-        print(f"\n[!] Connection failed on {url} due to NameResolutionError: {str(e)}.\n")
-    except Exception as e:
-        print(f"\n[!] Error getting pdf: {str(e)}\n")
+                url_dict[pdf_url_dict[item]] = f"URL status: {response.status}"
+                
+        except Exception as e:
+            print(f"\n[!] Error getting pdf: {str(e)}\n")
 
     return url_dict
 
@@ -153,11 +145,10 @@ def create_excel(metadata_list):
     
     # todo add check if file already exists, might be unsafe 
     if path.isfile(file_name):
-        
         os.remove(file_name) # delete file
         # create excel document
         # will save in local folder
-        metadata_df.to_excel(file_name, sheet_name="PDF_Metadata", index=False)
+    metadata_df.to_excel(file_name, sheet_name="PDF_Metadata", index=False)
 
 def get_num_of_images_in_doc(pdf_document): #todo, to implement with PyMuPDF
     
@@ -209,9 +200,10 @@ if __name__ == "__main__":
         curr_url_count = 1 
 
         # for each url in the list of URLs we took from the Excel spreasheet:
-        if curr_url_count <= 1:  # only look at the first URL so we can test
-            for url in url_list:
-                
+ 
+        for url in url_list:
+            if curr_url_count <= 1:  # only look at the first URL so we can test
+
                 # get the PDF, file size, file name
                 print(f"\n---------------------------------------------")
                 print(f"Currently processing PDF url #{curr_url_count}")
@@ -255,7 +247,7 @@ if __name__ == "__main__":
                     # append the metadata for the current pdf url to the larger list of all PDFs/urls
                     metadata_list.append(current_url_metadata)
 
-                curr_url_count += 1 # add 1 more to count 
+                    curr_url_count += 1 # add 1 more to count 
 
         # create the final Excel file with all metadata from all PDFs
         create_excel(metadata_list)
