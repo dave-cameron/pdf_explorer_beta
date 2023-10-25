@@ -1,9 +1,9 @@
 import fitz as pdfCrawler # PyMuPDF
-import pandas as pd # https://pandas.pydata.org/docs/getting_started/index.html # may use if we decide to make dataframes to see data in real time
+import pandas as pd
 import urllib3 as httpclient
 import os
-
-from datetime import datetime as dt
+import datetime as dt
+import pathlib
 
 
 def create_pool_manager(): # todo pass in optional arguments to be pulled from config
@@ -116,7 +116,8 @@ def check_url_status(pdf_urls, http):
 
 def create_excel(metadata_list):
 
-    file_name = f"PDF_Metadata_{dt.today().strftime('%Y-%m-%d')}.xlsx"
+    file_name = f"PDF_Metadata_{dt.datetime.today().strftime('%Y-%m-%d')}.xlsx"
+
 
     metadata_df = pd.DataFrame(metadata_list, columns=[
         "Url", 
@@ -135,7 +136,7 @@ def create_excel(metadata_list):
     ])
     
 
-    if os.path.isfile(file_name):
+    if os.path.exists(file_name):
         os.remove(file_name) 
 
     metadata_df.to_excel(file_name, sheet_name="PDF_Metadata", index=False)
@@ -163,26 +164,27 @@ def get_num_of_images_in_doc(pdf_document): #todo, to implement with PyMuPDF
 
 if __name__ == "__main__":
 
-    day = dt.today().strftime("%d/%m/%Y")
-    time = dt.today().strftime("%H:%M:%S")
+    day = dt.datetime.today().strftime("%d/%m/%Y")
+    time = dt.datetime.today().strftime("%H:%M:%S")
 
     print(f"\n---------------------------------------------")
     print(f"Starting the process at {time} on {day}")
     print(f"---------------------------------------------\n")
     
 
-    path_to_file = "CCTAN-internal_pdfs_20230914.xlsx"
+    file_name = "CCTAN_Public_PDFs.xlsx"
+    parent_directory = pathlib.Path(__file__).parent.resolve()
+    file_path = os.path.join(parent_directory, file_name)
 
     try:
         http = create_pool_manager()
 
-        print(f"Getting the excel file and getting URLs:  {path_to_file}")
-        excel_df = pd.read_excel(path_to_file)
+        print(f"Getting the excel file and getting URLs:  {file_name}")
+        excel_df = pd.read_excel(file_path)
         url_list = excel_df.iloc[:,0].values.flatten().tolist()  
         
         metadata_list = [] 
         skipped_urls = [] 
-
 
         curr_url_count = 1 
  
