@@ -1,20 +1,14 @@
-import io
 import fitz as pdfCrawler # PyMuPDF
-import requests as request
 import pandas as pd # https://pandas.pydata.org/docs/getting_started/index.html # may use if we decide to make dataframes to see data in real time
 import urllib3 as httpclient
-# import re # regex
-import os.path
+import os
 
-from os import path
-from urllib3 import Timeout, PoolManager 
 from datetime import datetime as dt
 
 
-def create_pool_manager():
-    timeout = Timeout(connect=2.0, read=10.0)
-    http = PoolManager(timeout=timeout)
-
+def create_pool_manager(): # todo pass in optional arguments to be pulled from config
+    timeout = httpclient.Timeout(connect=2.0, read=2.0)
+    http = httpclient.PoolManager(timeout=timeout)
     return http
 
 def get_pdf(pdf_url, http):
@@ -58,7 +52,6 @@ def get_metadata(url):
 
 def get_links(pdf_document):
 
-    # Initialize a list to store the URLs found in the PDFs
     page_count = pdf_document.page_count
     all_urls = []
     url_to_add = []
@@ -67,7 +60,6 @@ def get_links(pdf_document):
     print(f"Finding URLs in current PDF")
     print(f"---------------------------------------------\n")
 
-    # Loop through each page in the PDF
     for page_number in range(page_count):
        
         page = pdf_document.load_page(page_number)
@@ -83,7 +75,7 @@ def get_links(pdf_document):
                 else:
                     print(f"[+] URL located on page {page_number + 1}: {item['uri']}")  
                     url_to_add.append(item['uri'])  
-                    all_urls.append({f"{page_number + 1}" : item["uri"]}) # should be their own unique dictionaries
+                    all_urls.append({f"{page_number + 1}" : item["uri"]})
                     
     print (f"---------------------------------------------")
 
@@ -104,6 +96,7 @@ def check_url_status(pdf_urls, http):
     print(f"---------------------------------------------\n")
     
     for pdf_url_dict in pdf_urls: #todo need to fix this 
+       
         try: 
             for item in pdf_url_dict: # please fix this 
                 print(f"Checking status of url: {pdf_url_dict[item]}")
@@ -125,7 +118,6 @@ def create_excel(metadata_list):
 
     file_name = f"PDF_Metadata_{dt.today().strftime('%Y-%m-%d')}.xlsx"
 
-    # using pandas, create dataframe to hold all the data 
     metadata_df = pd.DataFrame(metadata_list, columns=[
         "Url", 
         "Format", 
@@ -140,14 +132,12 @@ def create_excel(metadata_list):
         "Subject",
         "Keywords",
         "URLs",  # {https://www.someurl.com: status 404,  https://www.someurl.com: status 200, ...} 
-        # "Meets 508" # to implement
     ])
     
-    # todo add check if file already exists, might be unsafe 
-    if path.isfile(file_name):
-        os.remove(file_name) # delete file
-        # create excel document
-        # will save in local folder
+
+    if os.path.isfile(file_name):
+        os.remove(file_name) 
+
     metadata_df.to_excel(file_name, sheet_name="PDF_Metadata", index=False)
 
 def get_num_of_images_in_doc(pdf_document): #todo, to implement with PyMuPDF
@@ -158,7 +148,6 @@ def get_num_of_images_in_doc(pdf_document): #todo, to implement with PyMuPDF
         try:
            image_list = pdf_document[page_index].get_images(full=True)
            
-           # printing number of images found in this page
            if image_list:
                print(f"[+] Found a total of {len(image_list)} image(s) on page {page_index + 1}") # hack
                image_count += len(image_list)
@@ -181,39 +170,32 @@ if __name__ == "__main__":
     print(f"Starting the process at {time} on {day}")
     print(f"---------------------------------------------\n")
     
-    # path to the excel file or excel file name if in path
+
     path_to_file = "CCTAN-internal_pdfs_20230914.xlsx"
 
-    # "wrap" your code in try, except, finally to catch errors so that you 1) can debug issues and 2) can ensure your program gracefully exits if it encounters an issue 
     try:
-        # create the httpclient
         http = create_pool_manager()
 
         print(f"Getting the excel file and getting URLs:  {path_to_file}")
         excel_df = pd.read_excel(path_to_file)
-        url_list = excel_df.iloc[:,0].values.flatten().tolist()  # grab the 2nd column (the column with URLs) and convert to a list 
+        url_list = excel_df.iloc[:,0].values.flatten().tolist()  
         
-        metadata_list = [] # created this to hold all of the metadata from the PDF url 
-        skipped_urls = [] # PDF URLs that are broken or have issues so we can't analyze their contents
+        metadata_list = [] 
+        skipped_urls = [] 
 
-        # create a counter to keep track of how many URLs from the Excel spreadsheet we have looked at so far, starting with the first one
+
         curr_url_count = 1 
-
-        # for each url in the list of URLs we took from the Excel spreasheet:
  
         for url in url_list:
-            if curr_url_count <= 1:  # only look at the first URL so we can test
+            if curr_url_count <= 1: 
 
-                # get the PDF, file size, file name
                 print(f"\n---------------------------------------------")
                 print(f"Currently processing PDF url #{curr_url_count}")
                 print(f"Getting PDF information for: {url}")
                 print(f"---------------------------------------------")
 
-                pdf_document, pdf_file_size, pdf_file_name = get_pdf(url, http) # in the get_pdf function, pass in the url and http. 
-                                                                                # this will return the pdf document, file size (bytes) and file name
-
-                # check if nothing came becaise of an error 
+                pdf_document, pdf_file_size, pdf_file_name = get_pdf(url, http) 
+                                                                                
                 if pdf_document is None:
                     print(f"[!] Warning: There is no PDF to process because of an error for this url: {url}") 
                     skipped_urls.append({url})
@@ -223,12 +205,11 @@ if __name__ == "__main__":
                     print(f"---------------------------------------------\n")
 
                     
-                    images_count = get_num_of_images_in_doc(pdf_document) # get images 
-                    links_in_pdf = get_links(pdf_document)  # get urls from page
-                    checked_urls = check_url_status(links_in_pdf, http) # get all statuses of urls found in PDF
-                    metadata = get_metadata(pdf_document)  # return metadata from the PDF
+                    images_count = get_num_of_images_in_doc(pdf_document) 
+                    links_in_pdf = get_links(pdf_document)  
+                    checked_urls = check_url_status(links_in_pdf, http)
+                    metadata = get_metadata(pdf_document)  
                     
-                    # add URL + relevant metadata to list
                     current_url_metadata = [
                         url, 
                         metadata["format"], 
@@ -244,16 +225,16 @@ if __name__ == "__main__":
                         metadata["keywords"],
                         checked_urls,
                     ]
-                    # append the metadata for the current pdf url to the larger list of all PDFs/urls
+
                     metadata_list.append(current_url_metadata)
 
-                    curr_url_count += 1 # add 1 more to count 
+                    curr_url_count += 1 
 
-        # create the final Excel file with all metadata from all PDFs
+ 
         create_excel(metadata_list)
         print("Created excel file.")
 
-        #to do: create summary
+
         if len(skipped_urls) < 1:
             print(f"[O] No URLs were skipped.")
         else:
@@ -261,8 +242,6 @@ if __name__ == "__main__":
                 print(f"[!] Skipped URL: {url}")
 
     except Exception as err:
-        # print the error message so we know what happened and can try to fix the issue= (e.g., typo in the pdf_url)
         print("Error extracting URLs from pdf: ", err)
-    # if there is an error, capture the error message 
     finally:
         print("Done.")
