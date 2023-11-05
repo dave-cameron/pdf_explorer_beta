@@ -13,40 +13,36 @@ def get_pdf(pdf_url, http):
 
     try:
         # Download the PDF content from the URL
-        response = http.request("GET", pdf_url, retries = 5)
+        pdf_response = http.request("GET", pdf_url, retries = 5)
         
-        if response.headers.get("Content-Disposition") is None:
-            print(f"[!] Could not find file name, so generating a file name now.")
+        if pdf_response.status == 200:
+            # Create a PDF document object
+            pdf_document = pdfCrawler.open(stream=pdf_response.data, filetype="pdf")
+        else:
+            print(f"Failed to fetch PDF from {pdf_url} because of {pdf_response.status_code}")
+       
+        return pdf_document, pdf_response 
+    
+    except Exception as err:
+        print(f"Error getting pdf: {err}")
+
+def get_metadata(pdf_document, pdf_response, pdf_url):
+
+        if pdf_response.headers.get("Content-Disposition") is None:
+            print(f"[!] Could not find file name, so generating a file name from url now.")
             pdf_file_name = pdf_url.split("/")[-1]
         else:
-            pdf_file_name = response.headers.get("Content-Disposition").split("filename=")[1]
+            pdf_file_name = pdf_response.headers.get("Content-Disposition").split("filename=")[1]
             
         print(f"File name: {pdf_file_name}")
             
         # try to get page length
-        if response.headers.get("Content-Length") is None:
+        if pdf_response.headers.get("Content-Length") is None:
             print("Length of document not available")
         else:
-            pdf_file_size = response.headers['Content-Length']
+            pdf_file_size = pdf_response.headers['Content-Length']
 
-        if response.status != 200:
-            print(f"Failed to fetch PDF from {pdf_url} because of {response.status_code}")
-            return
-        
-        # Create a PDF document object
-        pdf_document = pdfCrawler.open(stream=response.data, filetype="pdf")
-        return pdf_document, pdf_file_size, pdf_file_name, 
-    
-    except httpclient.exceptions.NewConnectionError as err:
-        print(f"Connection failed on {pdf_url} due to NewConnectionError: {err}.")
-    except httpclient.exceptions.ReadTimeoutError as err:
-        print(f"Connection failed on {pdf_url} due to ReadTimeoutError: {err}.")
-    except Exception as err:
-        print(f"Error getting pdf: {err}")
-
-def get_metadata(pdf_document):
-    # probably could do a lot more more in this method
-    return pdf_document.metadata
+        return pdf_document.metadata, pdf_file_name, pdf_file_size
 
 def get_links(pdf_document):
 
@@ -116,7 +112,6 @@ def create_excel(metadata_list):
 
     file_name = f"PDF_Metadata_{dt.datetime.today().strftime('%Y-%m-%d')}.xlsx"
 
-
     metadata_df = pd.DataFrame(metadata_list, columns=[
         "Url", 
         "Format", 
@@ -126,7 +121,8 @@ def create_excel(metadata_list):
         # "Images count",
         "Date Created", 
         "Date Modified", 
-        "Title", 
+        "Title",
+        "Title Length",
         "Author",
         "Subject",
         "Keywords",

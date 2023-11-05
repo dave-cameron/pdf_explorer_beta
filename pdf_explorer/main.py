@@ -5,9 +5,7 @@ import utils
 import os
 
 
-
-if __name__ == "__main__":
-
+def main():
     day = dt.datetime.today().strftime("%d/%m/%Y")
     time = dt.datetime.today().strftime("%H:%M:%S")
 
@@ -40,7 +38,7 @@ if __name__ == "__main__":
                 print(f"Getting PDF information for: {url}")
                 print(f"---------------------------------------------")
 
-                pdf_document, pdf_file_size, pdf_file_name = utils.get_pdf(url, http) 
+                pdf_document, pdf_response = utils.get_pdf(url, http) 
                                                                                 
                 if pdf_document is None:
                     print(f"[!] Warning: There is no PDF to process because of an error for this url: {url}") 
@@ -51,10 +49,11 @@ if __name__ == "__main__":
                     print(f"---------------------------------------------\n")
 
                     # todo: group, put in a class?
-                    # images_count = utils.get_num_of_images_in_doc(pdf_document) 
+                    
                     links_in_pdf = utils.get_links(pdf_document)  
                     checked_urls = utils.check_url_status(links_in_pdf, http)
-                    metadata = utils.get_metadata(pdf_document)  
+                    metadata, pdf_file_name, pdf_file_size = utils.get_metadata(pdf_document, pdf_response, url)  
+                    # images_count = utils.get_num_of_images_in_doc(pdf_document) 
                     
                     # class? 
                     current_url_metadata = [
@@ -67,6 +66,7 @@ if __name__ == "__main__":
                         metadata["creationDate"],
                         metadata["modDate"],
                         metadata["title"],
+                        len(metadata["title"]),
                         metadata["author"],
                         metadata["subject"],
                         metadata["keywords"],
@@ -77,7 +77,6 @@ if __name__ == "__main__":
 
                     curr_url_count += 1 
 
- 
         utils.create_excel(metadata_list)
         print("Created excel file.")
 
@@ -91,3 +90,11 @@ if __name__ == "__main__":
         print("Error extracting URLs from pdf: ", err)
     finally:
         print("Done.")
+
+if __name__ == "__main__":
+
+    # sys args
+    main()
+   
+
+    
