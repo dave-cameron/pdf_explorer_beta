@@ -3,6 +3,7 @@ import pandas as pd
 import urllib3 as httpclient
 import os
 import datetime as dt
+import helpers
 
 def create_pool_manager():
     timeout = httpclient.Timeout(connect=2.0, read=2.0)
@@ -12,11 +13,9 @@ def create_pool_manager():
 def get_pdf(pdf_url, http):
 
     try:
-        # Download the PDF content from the URL
         pdf_response = http.request("GET", pdf_url, retries = 5)
         
         if pdf_response.status == 200:
-            # Create a PDF document object
             pdf_document = pdfCrawler.open(stream=pdf_response.data, filetype="pdf")
         else:
             print(f"Failed to fetch PDF from {pdf_url} because of {pdf_response.status_code}")
@@ -26,99 +25,65 @@ def get_pdf(pdf_url, http):
     except Exception as err:
         print(f"Error getting pdf: {err}")
 
-def get_metadata(pdf_document, pdf_response, pdf_url):
+def get_page_metadata(page, page_num, response, pdf_url, http):
 
-        if pdf_response.headers.get("Content-Disposition") is None:
+        if response.headers.get("Content-Disposition") is None:
             print(f"[!] Could not find file name, so generating a file name from url now.")
             pdf_file_name = pdf_url.split("/")[-1]
         else:
-            pdf_file_name = pdf_response.headers.get("Content-Disposition").split("filename=")[1]
+            pdf_file_name = response.headers.get("Content-Disposition").split("filename=")[1]
             
         print(f"File name: {pdf_file_name}")
             
         # try to get page length
-        if pdf_response.headers.get("Content-Length") is None:
+        if response.headers.get("Content-Length") is None:
             print("Length of document not available")
         else:
-            pdf_file_size = pdf_response.headers['Content-Length']
+            pdf_file_size = response.headers['Content-Length']
 
-        return pdf_document.metadata, pdf_file_name, pdf_file_size
+        page_links = helpers.get_page_links(page, page_num)
+        page_url_status_dict = {}
 
-def get_links(pdf_document):
-
-    page_count = pdf_document.page_count
-    all_urls = []
-    url_to_add = []
-
-    print(f"\n---------------------------------------------")
-    print(f"Finding URLs in current PDF")
-    print(f"---------------------------------------------\n")
-
-    for page_number in range(page_count):
-       
-        page = pdf_document.load_page(page_number)
-        link_object = page.get_links()
-
-        if len(link_object) < 1:
-            print(f"[!] Found no URLs on {page_number + 1}.")  # todo: clean this hack up (+ 1 to page_number)
-        else:
-            for item in link_object:
-                
-                if item['uri'] in url_to_add:
-                    print(f"[!] Already addded:{item['uri']}")        
-                else:
-                    print(f"[+] URL located on page {page_number + 1}: {item['uri']}")  
-                    url_to_add.append(item['uri'])  
-                    all_urls.append({f"{page_number + 1}" : item["uri"]})
-                    
-    print (f"---------------------------------------------")
-
-    if len(all_urls) < 1:
-        print(f"[!] Found no URLs in PDF\n")
-    else:
-
-        print(f"[+] Found {len(all_urls)} URL(s) in PDF\n")
+        if len(page_links) >=1:
+            page_url_status_dict = helpers.get_status(page_links, http)
         
-    return all_urls
+        img_details = {}
+       # img_details = helpers.get_page_images(page)
 
-def check_url_status(pdf_urls, http):
-    
-    url_dict = {}
+        return pdf_file_name, pdf_file_size, page_url_status_dict, img_details
 
-    print(f"\n---------------------------------------------")
-    print(f"Checking status of URLs in PDF")
-    print(f"---------------------------------------------\n")
-    
-    for pdf_url_dict in pdf_urls: #todo need to fix this 
+def build_metadata_output(url, page_count, page_num,file_name, pdf_file_size, metadata, metadata_details):
        
-        try: 
-            for item in pdf_url_dict: # please fix this 
-                print(f"Checking status of url: {pdf_url_dict[item]}")
-                response = http.request("GET", pdf_url_dict[item], retries = 5)
-    
-                if response.status == 200:
-                    print(f"[+] URL status: {response.status}\n")
-                else:
-                    print(f"[!] URL status: {response.status}\n")
+       page_metadata = [
+                                url, 
+                                metadata["format"], 
+                                pdf_file_size, 
+                                file_name,
+                                page_count,
+                                metadata["creationDate"],
+                                metadata["modDate"],
+                                metadata["title"],
+                                len(metadata["title"]),
+                                metadata["author"],
+                                metadata["subject"],
+                                metadata["keywords"],
+                                page_num,
+                                metadata_details["item_type"],
+                                metadata_details["item"],
+                                metadata_details["item_detail"]
+                            ] 
+       return page_metadata
 
-                url_dict[pdf_url_dict[item]] = f"URL status: {response.status}"
-                
-        except Exception as e:
-            print(f"\n[!] Error getting pdf: {str(e)}\n")
+def create_output(page_metadata):
 
-    return url_dict
+    file_name = f"PDF_Metadata_{dt.datetime.today().strftime('%Y-%m-%d %H:%M:%S')}.xlsx"
 
-def create_excel(metadata_list):
-
-    file_name = f"PDF_Metadata_{dt.datetime.today().strftime('%Y-%m-%d')}.xlsx"
-
-    metadata_df = pd.DataFrame(metadata_list, columns=[
+    metadata_df = pd.DataFrame(page_metadata, columns=[
         "Url", 
         "Format", 
         "File size",
         "File name",
         "Page count", 
-        # "Images count",
         "Date Created", 
         "Date Modified", 
         "Title",
@@ -126,9 +91,11 @@ def create_excel(metadata_list):
         "Author",
         "Subject",
         "Keywords",
-        "URLs",  # {https://www.someurl.com: status 404,  https://www.someurl.com: status 200, ...} 
+        "page",
+        "item_type",
+        "item",
+        "item_detail",
     ])
-    
 
     if os.path.exists(file_name):
         os.remove(file_name) 
