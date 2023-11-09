@@ -33,7 +33,9 @@ def main():
         curr_url_count = 1
  
         for url in init_url_list:
+            
             if curr_url_count <= 31: 
+                
                 if url in worked_pdf:
                     print("duplicate")
                 else:
@@ -56,18 +58,20 @@ def main():
                         for page_num in range(pdf_document.page_count):
     
                             current_page = pdf_document.load_page(page_num)
+                            # print(current_page.name)
                             pdf_file_name, pdf_file_size, url_details, img_details = utils.get_page_metadata(current_page, page_num, pdf_response, url, http)  
-                            # combined_metadata_details = url_details.extend(img_details)
+                            # combined_metadata_details = url_details.update(img_details)
                             
                             # class? 
-                            print(f"Build page object for page {page_num + 1}")
-                            # for item in combined_details
-                                # metadata_item = utils.build_metadata_output(pdf_file_name, pdf_file_size, pdf_document.metadata, metadata_detail)
-                                # metadata_list.append(metadata_item)
+                           #  print(f"Build page object for page {page_num + 1}")
+                            
+                            # # for item in combined_metadata_details:
+                               # metadata_item = utils.build_metadata_output(pdf_file_name, pdf_file_size, pdf_document.metadata, item)
+                               # metadata_list.append(metadata_item)
 
                         curr_url_count += 1 
 
-        # utils.create_output(metadata_list)
+       # utils.create_output(metadata_list)
         print("Created excel file.")
 
         if len(skipped_urls) < 1:

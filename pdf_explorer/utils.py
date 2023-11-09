@@ -48,30 +48,40 @@ def get_page_metadata(page, page_num, response, pdf_url, http):
             page_url_status_dict = helpers.get_status(page_links, http)
         
         img_details = {}
-       # img_details = helpers.get_page_images(page)
+        img_details = helpers.get_page_images(page, page_num)
 
         return pdf_file_name, pdf_file_size, page_url_status_dict, img_details
 
-def build_metadata_output(url, page_count, page_num,file_name, pdf_file_size, metadata, metadata_details):
+def build_metadata_output(url, page_count, page_num, file_name, pdf_file_size, metadata, metadata_details):
        
-       page_metadata = [
-                                url, 
-                                metadata["format"], 
-                                pdf_file_size, 
-                                file_name,
-                                page_count,
-                                metadata["creationDate"],
-                                metadata["modDate"],
-                                metadata["title"],
-                                len(metadata["title"]),
-                                metadata["author"],
-                                metadata["subject"],
-                                metadata["keywords"],
-                                page_num,
-                                metadata_details["item_type"],
-                                metadata_details["item"],
-                                metadata_details["item_detail"]
-                            ] 
+       for key, value in metadata_details.items():
+           if "Image" in value:
+               item_type = "Image"
+               item = key
+               item_detail = value
+           else:
+               item_type = "Url"
+               item = key
+               item_detail = value
+           
+           page_metadata = [
+                            url, 
+                            metadata["format"], 
+                            pdf_file_size, 
+                            file_name,
+                            page_count,
+                            metadata["creationDate"],
+                            metadata["modDate"],
+                            metadata["title"],
+                            len(metadata["title"]),
+                            metadata["author"],
+                            metadata["subject"],
+                            metadata["keywords"],
+                            page_num,
+                            item_type,
+                            item,
+                            item_detail
+                        ] 
        return page_metadata
 
 def create_output(page_metadata):
@@ -81,13 +91,13 @@ def create_output(page_metadata):
     metadata_df = pd.DataFrame(page_metadata, columns=[
         "Url", 
         "Format", 
-        "File size",
-        "File name",
+        "File size", 
+        "File name", 
         "Page count", 
         "Date Created", 
         "Date Modified", 
         "Title",
-        "Title Length",
+        "Title Length", 
         "Author",
         "Subject",
         "Keywords",

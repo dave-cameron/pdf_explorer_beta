@@ -1,5 +1,5 @@
 
-def get_page_links(page, page_number):
+def get_page_links(page, page_number): 
 
     all_urls = []
     url_to_add = []
@@ -8,12 +8,13 @@ def get_page_links(page, page_number):
     print(f"Finding URLs in current PDF")
     print(f"---------------------------------------------\n")
 
-    link_object = page.get_links()
+    link_list = page.get_links()
 
-    if len(link_object) < 1:
+
+    if len(link_list) < 1:
         print(f"[!] Found no URLs on {page_number + 1}.")  # todo: clean this hack up (+ 1 to page_number)
     else:
-        for item in link_object:
+        for item in link_list:
             
             if item['uri'] in url_to_add:
                 print(f"[!] Already addded:{item['uri']}")        
@@ -58,5 +59,15 @@ def get_status(pdf_urls, http):
 
     return url_dict
 
-def get_page_images(page):
-   raise NotImplementedError
+def get_page_images(page, page_number):
+    all_imgs = []
+
+    img_list = page.get_images()
+   
+    if len(img_list) < 1:
+        print(f"[!] Found no images on {page_number + 1}.")  # todo: clean this hack up (+ 1 to page_number)
+    else:
+       for item in img_list:
+           all_imgs.append({f"{page_number + 1}" : f"Image size: {item[1]}"})
+
+    return all_imgs
