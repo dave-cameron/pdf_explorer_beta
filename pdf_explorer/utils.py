@@ -18,95 +18,124 @@ def get_pdf(pdf_url, http):
         if pdf_response.status == 200:
             pdf_document = pdfCrawler.open(stream=pdf_response.data, filetype="pdf")
         else:
-            print(f"Failed to fetch PDF from {pdf_url} because of {pdf_response.status_code}")
+            print(f"[!!!] Failed to fetch PDF from {pdf_url} because of {pdf_response.status_code}")
        
         return pdf_document, pdf_response 
     
     except Exception as err:
         print(f"Error getting pdf: {err}")
 
-def get_page_metadata(page, page_num, response, pdf_url, http):
+def get_page_metadata(document, page, response, pdf_url, page_num, http, info_type):
 
-        if response.headers.get("Content-Disposition") is None:
-            print(f"[!] Could not find file name, so generating a file name from url now.")
-            pdf_file_name = pdf_url.split("/")[-1]
-        else:
-            pdf_file_name = response.headers.get("Content-Disposition").split("filename=")[1]
-            
-        print(f"File name: {pdf_file_name}")
-            
-        # try to get page length
-        if response.headers.get("Content-Length") is None:
-            print("Length of document not available")
-        else:
-            pdf_file_size = response.headers['Content-Length']
+    img_details = []
+    url_status_details = []
+    page_links = []
 
-        page_links = helpers.get_page_links(page, page_num)
-        page_url_status_dict = {}
+    metadata = document.metadata
 
-        if len(page_links) >=1:
-            page_url_status_dict = helpers.get_status(page_links, http)
+    if response.headers.get("Content-Disposition") is None:
+        pdf_file_name = pdf_url.split("/")[-1]
+    else:
+        pdf_file_name = response.headers.get("Content-Disposition").split("filename=")[1]
         
-        img_details = {}
-        img_details = helpers.get_page_images(page, page_num)
+    if response.headers.get("Content-Length") is not None:
+        pdf_file_size = response.headers['Content-Length']
 
-        return pdf_file_name, pdf_file_size, page_url_status_dict, img_details
+    page_links = helpers.get_page_links(page, page_num)
 
-def build_metadata_output(url, page_count, page_num, file_name, pdf_file_size, metadata, metadata_details):
-       
-       for key, value in metadata_details.items():
-           if "Image" in value:
-               item_type = "Image"
-               item = key
-               item_detail = value
-           else:
-               item_type = "Url"
-               item = key
-               item_detail = value
-           
-           page_metadata = [
-                            url, 
-                            metadata["format"], 
-                            pdf_file_size, 
-                            file_name,
-                            page_count,
-                            metadata["creationDate"],
-                            metadata["modDate"],
-                            metadata["title"],
-                            len(metadata["title"]),
-                            metadata["author"],
-                            metadata["subject"],
-                            metadata["keywords"],
-                            page_num,
-                            item_type,
-                            item,
-                            item_detail
-                        ] 
-       return page_metadata
+    if len(page_links) >=1 and info_type is not None: # and the key for getting the links
+        url_status_details = helpers.get_status(page_links, http)
 
-def create_output(page_metadata):
+    img_details = helpers.get_page_images(page, page_num)
 
-    file_name = f"PDF_Metadata_{dt.datetime.today().strftime('%Y-%m-%d %H:%M:%S')}.xlsx"
+    return metadata, pdf_file_name, pdf_file_size, page_links, url_status_details, img_details
 
-    metadata_df = pd.DataFrame(page_metadata, columns=[
-        "Url", 
-        "Format", 
-        "File size", 
-        "File name", 
-        "Page count", 
-        "Date Created", 
-        "Date Modified", 
-        "Title",
-        "Title Length", 
-        "Author",
-        "Subject",
-        "Keywords",
-        "page",
-        "item_type",
-        "item",
-        "item_detail",
-    ])
+def build_metadata_output(url, document, page, page_num, response, http, info_type = None):
+    
+    page_metadata_list = []  
+    page_metadata_details = []
+    url_status_details = []
+    img_details = []
 
+    img_counts = 0
+    page_link_count = 0
+
+    metadata, file_name, file_size, page_links, url_status_details, img_details = get_page_metadata(document, page, response, url, 
+                                                                                                      page_num, http, info_type)
+    
+    for item in page_links:
+        page_metadata_details.append(item) # list of dicts
+
+    for item in url_status_details:
+        page_metadata_details.append(item)
+        page_link_count += 1
+
+    for item in img_details:
+        page_metadata_details.append(item)
+        img_counts += 1
+        
+    for row in page_metadata_details:
+        for k, v in row.items():
+            try:
+                if "Image" in v:
+                    item_type = "Image"
+                    item_detail = v
+                else:
+                    item_type = "Url"
+                    item_detail = v
+                
+                page_metadata = [
+                                url, 
+                                metadata["format"], 
+                                file_size, 
+                                file_name,
+                                document.page_count,
+                                metadata["creationDate"],
+                                metadata["modDate"],
+                                metadata["title"],
+                                len(metadata["title"]),
+                                metadata["author"],
+                                metadata["subject"],
+                                metadata["keywords"],
+                                page_num,
+                                item_type,
+                                item_detail
+                            ] 
+                
+                page_metadata_list.append(page_metadata)
+            except Exception as e:
+                print(f"Error extracting URLs from pdf: {str(e)}")
+    
+
+    return page_metadata_list
+
+def create_output(page_metadata_list):
+
+    file_name = f"PDF_Metadata_{dt.datetime.today().strftime('%Y-%m-%d')}.xlsx"
+    
+    try:
+        metadata_df = pd.DataFrame(page_metadata_list, columns=[
+            "Url", 
+            "Format", 
+            "File size", 
+            "File name", 
+            "Page count", 
+            "Date Created", 
+            "Date Modified", 
+            "Title",
+            "Title Length", 
+            "Author",
+            "Subject",
+            "Keywords",
+            "Page #",
+            "Item Type",
+            "Item Details",
+        ])
+    except Exception as e:
+        print(f"Error extracting URLs from pdf: {str(e)}")
+
+    # todo implement summary of all rows
+    
     if os.path.exists(file_name):
         os.remove(file_name) 
 
